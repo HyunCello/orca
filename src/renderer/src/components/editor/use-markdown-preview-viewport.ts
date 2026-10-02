@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect } from 'react'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import { resolveMarkdownPreviewAddReviewNoteKey } from './markdown-preview-annotation-shortcut'
 import {
@@ -6,6 +6,7 @@ import {
   getMarkdownPreviewAnchorScrollTop
 } from './markdown-preview-anchor-navigation'
 import { cancelMarkdownPreviewEditorRevealFrames } from './markdown-preview-editor-reveal'
+import { clearMarkdownPreviewReviewTimers } from './markdown-preview-review-timer-cleanup'
 import {
   applyMarkdownPreviewSearchHighlights,
   clearMarkdownPreviewSearchHighlights,
@@ -14,14 +15,6 @@ import {
 } from './markdown-preview-search'
 import type { MarkdownPreviewFoundation } from './use-markdown-preview-foundation'
 import { useMarkdownPreviewScrollViewport } from './use-markdown-preview-scroll-viewport'
-
-function clearMarkdownPreviewTimeout(timeoutRef: MutableRefObject<number | null>): void {
-  if (timeoutRef.current === null) {
-    return
-  }
-  window.clearTimeout(timeoutRef.current)
-  timeoutRef.current = null
-}
 
 export function useMarkdownPreviewViewport({
   foundation,
@@ -61,6 +54,9 @@ export function useMarkdownPreviewViewport({
     copiedReviewNoteResetTimerRef,
     reviewNotesCopyMountedRef,
     attentionReviewCommentTimeoutRef,
+    pendingReviewActionFrameIdsRef,
+    pendingReviewActionTimeoutIdsRef,
+    reviewActionFrameGenerationRef,
     renderedContent
   } = foundation
 
@@ -109,15 +105,24 @@ export function useMarkdownPreviewViewport({
   }, [copiedReviewNoteResetTimerRef])
 
   const cleanupPreviewSurfaceTimers = useCallback((): void => {
+    reviewActionFrameGenerationRef.current += 1
+    const reviewFrames = pendingReviewActionFrameIdsRef.current
+    pendingReviewActionFrameIdsRef.current = []
+    const reviewTimeouts = pendingReviewActionTimeoutIdsRef.current
+    pendingReviewActionTimeoutIdsRef.current = []
     cancelMarkdownPreviewEditorRevealFrames(pendingEditorRevealFrameIdsRef)
-    clearMarkdownPreviewTimeout(attentionReviewCommentTimeoutRef)
+    clearMarkdownPreviewReviewTimers(attentionReviewCommentTimeoutRef, reviewTimeouts)
     clearReviewNotesCopiedResetTimer()
     clearCopiedReviewNoteResetTimer()
+    cancelMarkdownPreviewEditorRevealFrames({ current: reviewFrames })
   }, [
     attentionReviewCommentTimeoutRef,
     clearCopiedReviewNoteResetTimer,
     clearReviewNotesCopiedResetTimer,
-    pendingEditorRevealFrameIdsRef
+    pendingEditorRevealFrameIdsRef,
+    pendingReviewActionFrameIdsRef,
+    pendingReviewActionTimeoutIdsRef,
+    reviewActionFrameGenerationRef
   ])
 
   const setRootRef = useCallback(

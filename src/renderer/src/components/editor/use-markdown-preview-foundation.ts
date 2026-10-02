@@ -93,6 +93,9 @@ export function useMarkdownPreviewFoundation({
   const [activeReviewCommentId, setActiveReviewCommentId] = useState<string | null>(null)
   const [attentionReviewCommentId, setAttentionReviewCommentId] = useState<string | null>(null)
   const attentionReviewCommentTimeoutRef = useRef<number | null>(null)
+  const pendingReviewActionFrameIdsRef = useRef<number[]>([])
+  const pendingReviewActionTimeoutIdsRef = useRef<number[]>([])
+  const reviewActionFrameGenerationRef = useRef(0)
   const markdownReviewNotes = useMemo(
     () => sortMarkdownReviewNotes(markdownComments as MarkdownReviewNote[]),
     [markdownComments]
@@ -142,6 +145,9 @@ export function useMarkdownPreviewFoundation({
     attentionReviewCommentId,
     setAttentionReviewCommentId,
     attentionReviewCommentTimeoutRef,
+    pendingReviewActionFrameIdsRef,
+    pendingReviewActionTimeoutIdsRef,
+    reviewActionFrameGenerationRef,
     markdownReviewNotes,
     unsentMarkdownReviewScope,
     canShowReviewTools
