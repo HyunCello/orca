@@ -12,6 +12,22 @@ function isAtTail(event: NativeScrollEvent): boolean {
   return contentSize.height - (contentOffset.y + layoutMeasurement.height) <= AT_TAIL_SLOP
 }
 
+// DIAGNOSTIC BUILD ONLY — remove with the instrumentation below.
+const DIAG_ORIGIN = { at: Date.now() }
+function diagTail(label: string, event?: NativeScrollEvent) {
+  let tail = -1
+  let y = -1
+  if (event) {
+    y = Math.round(event.contentOffset.y)
+    tail = Math.round(
+      event.contentSize.height - (event.contentOffset.y + event.layoutMeasurement.height)
+    )
+  }
+  const phase = `t=${Date.now() - DIAG_ORIGIN.at}ms ${label} y=${y} tail=${tail}`
+  // eslint-disable-next-line no-console
+  console.log('[taildiag]', phase)
+}
+
 export type MobileNativeChatTailFollow<TItem> = {
   /** Attach to the transcript list; the hook scrolls through this ref alone. */
   listRef: RefObject<FlatList<TItem> | null>
@@ -81,6 +97,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       return
     }
     listRef.current?.scrollToEnd({ animated: false })
+    diagTail('PIN.scrollToEnd')
   }, [hasItems])
 
   const pinToTailAfterContentResize = useCallback(
@@ -106,6 +123,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   )
 
   const jumpToTail = useCallback(() => {
+    diagTail('EVT.jumpToTail')
     clearUserScrollSettle()
     userScrollPhaseRef.current = 'idle'
     setAtTail(true)
@@ -114,6 +132,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   }, [clearUserScrollSettle, pinToTail, setAtTail, setFollowing])
 
   const beginUserScroll = useCallback(() => {
+    diagTail('EVT.beginDrag')
     clearUserScrollSettle()
     userScrollPhaseRef.current = 'dragging'
     setFollowing(false)
@@ -121,6 +140,9 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   const finishUserScroll = useCallback(
     (finishedAtTail: boolean) => {
+      diagTail(
+        `FINISH atTail=${finishedAtTail} following=${followingRef.current} phase=${userScrollPhaseRef.current}`
+      )
       clearUserScrollSettle()
       userScrollPhaseRef.current = 'idle'
       setAtTail(finishedAtTail)
@@ -134,12 +156,14 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   const endUserDrag = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      diagTail(`EVT.endDrag phase=${userScrollPhaseRef.current}`, event.nativeEvent)
       if (userScrollPhaseRef.current !== 'dragging') {
         return
       }
       clearUserScrollSettle()
       userScrollPhaseRef.current = 'released'
       const releasedAtTail = isAtTail(event.nativeEvent)
+      diagTail(`  releasedAtTail=${releasedAtTail}`)
       userScrollSettleFrameRef.current = requestAnimationFrame(() => {
         userScrollSettleFrameRef.current = null
         finishUserScroll(releasedAtTail)
@@ -150,6 +174,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
 
   // Android also emits this for animated programmatic scrolls, so only a release hands off to it.
   const beginMomentum = useCallback(() => {
+    diagTail(`EVT.momentumBegin phase=${userScrollPhaseRef.current}`)
     if (userScrollPhaseRef.current !== 'released') {
       return
     }
@@ -160,6 +185,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   // iOS also emits this, with no begin, after every non-animated pin — even mid-drag.
   const endMomentum = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      diagTail(`EVT.momentumEnd phase=${userScrollPhaseRef.current}`, event.nativeEvent)
       if (userScrollPhaseRef.current !== 'momentum') {
         return
       }
