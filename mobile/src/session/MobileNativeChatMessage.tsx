@@ -1,6 +1,6 @@
 import { MobileSelectableText as Text } from '../components/MobileSelectableText'
 import { memo, useCallback, useState, type ComponentProps, type ReactNode } from 'react'
-import { Image, Text as NativeText, Pressable, View } from 'react-native'
+import { Image, Text as NativeText, View } from 'react-native'
 import { INLINE_TEXT_SELECTION } from '../components/inline-text-selection'
 import { MobileNativeChatMessageActionsSheet } from './MobileNativeChatMessageActionsSheet'
 import { splitNativeChatBlocks } from '../../../src/shared/native-chat-tool-fold'
@@ -85,13 +85,10 @@ function Content({
   style: ComponentProps<typeof View>['style']
   children: ReactNode
 }): React.JSX.Element {
-  return onLongPress ? (
-    <Pressable onLongPress={onLongPress} style={style}>
-      {children}
-    </Pressable>
-  ) : (
-    <View style={style}>{children}</View>
-  )
+  // DIAGNOSTIC A/B BUILD: the long-press Pressable is disabled to test whether it is what kills
+  // the FlatList fling. Revert with `git checkout` of this file once the answer is in.
+  void onLongPress
+  return <View style={style}>{children}</View>
 }
 
 function MobileNativeChatMessageImpl({
